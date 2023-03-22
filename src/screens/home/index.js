@@ -35,12 +35,53 @@ export const Home = () => {
 					title: 'Error',
 					message: e.message,
 				});
-				setIsAlertOpen(true);
 			} else {
 				setGeneralErrorMessage(genericErrorMessage);
 			}
+			setIsAlertOpen(true);
 		} finally {
 			setIsLoading(false);
+		}
+	};
+
+	const handleSubmitErrorResponse = (errorData) => {
+		if (errorData.errors) {
+			const { errors } = errorData;
+			const newFieldErrors = {};
+			let newGenericError = null;
+
+			errors.forEach((error) => {
+				if (error.detail && error.source) {
+					const { pointer } = error.source;
+					const questionId = pointer.split('/').pop();
+
+					if (fieldErrors[questionId]) {
+						newFieldErrors[questionId] = [
+							...fieldErrors[questionId],
+							error.detail,
+						];
+					} else {
+						newFieldErrors[questionId] = [error.detail];
+					}
+				} else if (error.title && error.detail) {
+					newGenericError = {
+						title: error.title,
+						message: error.detail,
+					};
+				}
+			});
+
+			if (Object.keys(newFieldErrors).length > 0) {
+				setFieldErrors(newFieldErrors);
+			}
+
+			if (newGenericError) {
+				setGeneralErrorMessage(newGenericError);
+				setIsAlertOpen(true);
+			}
+		} else {
+			setGeneralErrorMessage(genericErrorMessage);
+			setIsAlertOpen(true);
 		}
 	};
 
@@ -83,44 +124,7 @@ export const Home = () => {
 		} catch (e) {
 			if (e.response) {
 				const { data } = e.response;
-				if (data.errors) {
-					const { errors } = data;
-					const newFieldErrors = {};
-					let newGenericError = null;
-
-					errors.forEach((error) => {
-						if (error.detail && error.source) {
-							const { pointer } = error.source;
-							const questionId = pointer.split('/').pop();
-
-							if (fieldErrors[questionId]) {
-								newFieldErrors[questionId] = [
-									...fieldErrors[questionId],
-									error.detail,
-								];
-							} else {
-								newFieldErrors[questionId] = [error.detail];
-							}
-						} else if (error.title && error.detail) {
-							newGenericError = {
-								title: error.title,
-								message: error.detail,
-							};
-						}
-					});
-
-					if (Object.keys(newFieldErrors).length > 0) {
-						setFieldErrors(newFieldErrors);
-					}
-
-					if (newGenericError) {
-						setGeneralErrorMessage(newGenericError);
-						setIsAlertOpen(true);
-					}
-				} else {
-					setGeneralErrorMessage(genericErrorMessage);
-					setIsAlertOpen(true);
-				}
+				handleSubmitErrorResponse(data);
 			} else {
 				setGeneralErrorMessage(genericErrorMessage);
 				setIsAlertOpen(true);
@@ -171,7 +175,15 @@ export const Home = () => {
 
 	if (!isLoading && !surveyData) {
 		return (
-			<CardIntro description="Nothing to see here ... :(" title="No data" />
+			<>
+				<CardIntro description="Nothing to see here ... :(" title="No data" />
+				<Notification
+					onClose={handleAlertClose}
+					isOpen={isAlertOpen}
+					title={generalErrorMessage.title}
+					message={generalErrorMessage.message}
+				/>
+			</>
 		);
 	}
 
