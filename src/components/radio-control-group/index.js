@@ -33,12 +33,17 @@ export const RadioControlGroup = ({
 	);
 };
 
+RadioControlGroup.defaultProps = {
+	errors: [],
+	isError: false,
+	isRequired: false,
+};
+
 RadioControlGroup.propTypes = {
 	label: PropTypes.string.isRequired,
-	errorText: PropTypes.string,
+	values: PropTypes.array.isRequired,
+	onChange: PropTypes.func.isRequired,
 	isError: PropTypes.bool,
 	isRequired: PropTypes.bool,
 	errors: PropTypes.array,
-	values: PropTypes.array.isRequired,
-	onChange: PropTypes.func.isRequired,
 };

@@ -20,10 +20,16 @@ export const Input = ({ label, errors, isRequired, isError, onChange }) => {
 	);
 };
 
+Input.defaultProps = {
+	errors: [],
+	isRequired: false,
+	isError: false,
+};
+
 Input.propTypes = {
-	label: PropTypes.string,
+	label: PropTypes.string.isRequired,
+	onChange: PropTypes.func.isRequired,
 	errors: PropTypes.array,
 	isRequired: PropTypes.bool,
 	isError: PropTypes.bool,
-	onChange: PropTypes.func.isRequired,
 };

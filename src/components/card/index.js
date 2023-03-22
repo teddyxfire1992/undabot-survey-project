@@ -10,6 +10,10 @@ export const Card = ({ children, isDecorativeLineVisible }) => {
 	);
 };
 
+Card.defaultProps = {
+	isDecorativeLineVisible: false,
+};
+
 Card.propTypes = {
 	children: PropTypes.node.isRequired,
 	isDecorativeLineVisible: PropTypes.bool,
