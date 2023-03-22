@@ -1,31 +1,23 @@
-/* eslint-disable */
-import {
-	Box,
-	Card,
-	Snackbar,
-	Alert,
-	TextField,
-	FormControl,
-	FormLabel,
-	FormControlLabel,
-	FormHelperText,
-	RadioGroup,
-	Radio,
-	Button,
-} from '@mui/material';
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import { Header } from '../../components/header';
-import { theme } from '../../utils/theme';
 import { Loading } from '../../components/loading';
+import { CardIntro } from '../../components/card-intro';
+import { CardText } from '../../components/card-text';
+import { CardRating } from '../../components/card-rating';
+import { Button } from '../../components/button';
+import { genericErrorMessage } from '../../utils/constants';
+import { Notification } from '../../components/notification';
 
 export const Home = () => {
-	const [data, setData] = useState(null);
+	const [surveyData, setSurveyData] = useState(null);
 	const [answers, setAnswers] = useState([]);
 	const [isAlertOpen, setIsAlertOpen] = useState(false);
-	const [isLoading, setIsLoading] = useState(false);
-	const [generalErrorMessage, setGeneralErrorMessage] = useState('');
+	const [isLoading, setIsLoading] = useState(true);
+	const [generalErrorMessage, setGeneralErrorMessage] = useState({
+		title: '',
+		message: '',
+	});
 	const [fieldErrors, setFieldErrors] = useState({});
 	const navigate = useNavigate();
 
@@ -34,223 +26,211 @@ export const Home = () => {
 	}, []);
 
 	const fetchData = async () => {
-		// TODO: handle errors, proper API request etc.
-		setIsLoading(true);
 		try {
 			const res = await axios.get(`${process.env.REACT_APP_API_URL}/survey`);
-			setData(res.data.data);
+			setSurveyData(res.data.data);
 		} catch (e) {
-			if (e?.message) {
-				setGeneralErrorMessage(e.message);
-				setIsAlertOpen(true);
+			if (e.message) {
+				setGeneralErrorMessage({
+					title: 'Error',
+					message: e.message,
+				});
 			} else {
-				// TODO: move to constants
-				setGeneralErrorMessage('Something went wrong. Please try again later.');
+				setGeneralErrorMessage(genericErrorMessage);
+			}
+			setIsAlertOpen(true);
+		} finally {
+			setIsLoading(false);
+		}
+	};
+
+	const handleSubmitErrorResponse = (errorData) => {
+		if (errorData.errors) {
+			const { errors } = errorData;
+			const newFieldErrors = {};
+			let newGenericError = null;
+
+			errors.forEach((error) => {
+				if (error.detail && error.source) {
+					const { pointer } = error.source;
+					const questionId = pointer.split('/').pop();
+
+					if (fieldErrors[questionId]) {
+						newFieldErrors[questionId] = [
+							...fieldErrors[questionId],
+							error.detail,
+						];
+					} else {
+						newFieldErrors[questionId] = [error.detail];
+					}
+				} else if (error.title && error.detail) {
+					newGenericError = {
+						title: error.title,
+						message: error.detail,
+					};
+				}
+			});
+
+			if (Object.keys(newFieldErrors).length > 0) {
+				setFieldErrors(newFieldErrors);
+			}
+
+			if (newGenericError) {
+				setGeneralErrorMessage(newGenericError);
+				setIsAlertOpen(true);
+			}
+		} else {
+			setGeneralErrorMessage(genericErrorMessage);
+			setIsAlertOpen(true);
+		}
+	};
+
+	const handleSubmit = async () => {
+		const { questions } = surveyData.attributes;
+		let newFieldErrors = {};
+
+		questions.forEach((question) => {
+			const isQuestionAnswered =
+				answers.findIndex(
+					(answer) => answer.questionId === question.questionId
+				) !== -1;
+
+			if (question.required && !isQuestionAnswered) {
+				newFieldErrors[question.questionId] = ['Required'];
+			}
+		});
+
+		if (Object.keys(newFieldErrors).length > 0) {
+			return setFieldErrors(newFieldErrors);
+		}
+
+		try {
+			setIsLoading(true);
+			const payload = {
+				data: {
+					type: 'surveyAnswers',
+					attributes: {
+						answers,
+					},
+				},
+			};
+
+			await axios.post(
+				`${process.env.REACT_APP_API_URL}/survey/${surveyData.id}/answers`,
+				payload
+			);
+
+			navigate('result', { state: { surveyData, answers } });
+		} catch (e) {
+			if (e.response) {
+				const { data } = e.response;
+				handleSubmitErrorResponse(data);
+			} else {
+				setGeneralErrorMessage(genericErrorMessage);
+				setIsAlertOpen(true);
 			}
 		} finally {
 			setIsLoading(false);
 		}
 	};
 
-	const submit = async () => {
-		const { questions } = data.attributes;
-		let shouldSubmit = true;
-		questions.forEach((question) => {
-			const isQuestionAnswered =
-				answers.findIndex(
-					(answer) => answer.questionId === question.questionId
-				) !== -1;
-			if (question.required && !isQuestionAnswered) {
-				shouldSubmit = false;
-				setFieldErrors((prevState) => ({
-					...prevState,
-					[question.questionId]: 'Required',
-				}));
-			} else {
-				const newFieldErrors = { ...fieldErrors };
-				delete newFieldErrors[question.questionId];
-				setFieldErrors(newFieldErrors);
-			}
-		});
+	const getRatings = (min, max) => {
+		const ratings = [];
 
-		if (shouldSubmit) {
-			setIsLoading(true);
-			try {
-				const payload = {
-					data: {
-						type: 'surveyAnswers',
-						attributes: {
-							answers,
-						},
-					},
-				};
-
-				await axios.post(
-					`${process.env.REACT_APP_API_URL}/survey/${data.id}/answers`,
-					payload
-				);
-				navigate('result', { state: { data, answers } });
-			} catch (e) {
-				if (e.response?.data?.errors) {
-					const { errors } = e.response.data;
-					// TODO: handle errors array, prepare state to handle array of errors
-					setGeneralErrorMessage(errors[0].detail);
-				} else if (e.message) {
-					setGeneralErrorMessage(e.message);
-				} else {
-					// TODO: move to constants
-					setGeneralErrorMessage(
-						'Something went wrong. Please try again later.'
-					);
-				}
-				setIsAlertOpen(true);
-			} finally {
-				setIsLoading(false);
-			}
+		for (let i = min; i <= max; i++) {
+			ratings.push(i);
 		}
+
+		return ratings;
 	};
 
 	const handleAlertClose = () => {
 		setIsAlertOpen(false);
 	};
 
-	return (
-		<Box
-			maxWidth={{ xs: '100%', md: '800px' }}
-			padding="15px"
-			margin="0 auto"
-			display="flex"
-			flexDirection="column"
-			gap="12px"
-		>
-			<Header />
-			{isLoading ? (
-				<Loading />
-			) : (
-				<>
-					<Card>
-						<Box height="10px" backgroundColor={theme.palette.blue} />
-						<Box padding="0 15px">
-							<h1>{data?.attributes?.title}</h1>
-							<div
-								dangerouslySetInnerHTML={{
-									__html: data?.attributes?.description,
-								}}
-							/>
-						</Box>
-					</Card>
-					{data?.attributes?.questions.map((question) => {
-						if (question.questionType === 'text') {
-							return (
-								<Card key={question.questionId}>
-									<Box padding="15px">
-										<TextField
-											InputLabelProps={{ shrink: true }}
-											label={question.label}
-											required={question.required}
-											variant="standard"
-											error={question.questionId in fieldErrors}
-											helperText={fieldErrors[question.questionId]}
-											onChange={(e) => {
-												const value = e.target.value.trim();
-												const newAnswers = [...answers];
-												const index = newAnswers.findIndex(
-													(a) => a.questionId === question.questionId
-												);
+	const handleChange = (e, questionId) => {
+		const value = e.target.value.trim();
+		const newAnswers = [...answers];
+		const index = newAnswers.findIndex((a) => a.questionId === questionId);
 
-												if (index !== -1) {
-													if (value === '') {
-														newAnswers.splice(index, 1);
-													} else {
-														newAnswers[index].answer = value;
-													}
-												} else if (value !== '') {
-													newAnswers.push({
-														questionId: question.questionId,
-														answer: value,
-													});
-												}
+		if (index !== -1) {
+			if (value === '') {
+				newAnswers.splice(index, 1);
+			} else {
+				newAnswers[index].answer = value;
+			}
+		} else if (value !== '') {
+			newAnswers.push({
+				questionId,
+				answer: value,
+			});
+		}
 
-												setAnswers(newAnswers);
-											}}
-										/>
-									</Box>
-								</Card>
-							);
-						} else if (question.questionType === 'rating') {
-							const ratings = [];
+		setAnswers(newAnswers);
+	};
 
-							for (
-								let i = question.attributes.min;
-								i <= question.attributes.max;
-								i++
-							) {
-								ratings.push(i);
-							}
+	if (isLoading) {
+		return <Loading />;
+	}
 
-							return (
-								<Card key={question.questionId}>
-									<Box padding="15px">
-										<FormControl
-											error={question.questionId in fieldErrors}
-											required={question.required}
-											onChange={(e) => {
-												const newAnswers = [...answers];
-												const index = newAnswers.findIndex(
-													(answer) => answer.questionId === question.questionId
-												);
-
-												if (index !== -1) {
-													newAnswers[index].answer = e.target.value;
-												} else {
-													newAnswers.push({
-														questionId: question.questionId,
-														answer: e.target.value,
-													});
-												}
-
-												setAnswers(newAnswers);
-											}}
-										>
-											<FormLabel>{question.label}</FormLabel>
-											<RadioGroup row>
-												{ratings.map((rating) => (
-													<FormControlLabel
-														key={rating}
-														value={rating}
-														control={<Radio />}
-														label={rating}
-													/>
-												))}
-											</RadioGroup>
-											<FormHelperText>
-												{fieldErrors[question.questionId]}
-											</FormHelperText>
-										</FormControl>
-									</Box>
-								</Card>
-							);
-						}
-					})}
-					<Button variant="contained" sx={{ height: '50px' }} onClick={submit}>
-						Submit
-					</Button>
-				</>
-			)}
-			<Snackbar
-				open={isAlertOpen}
-				autoHideDuration={5000}
-				anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-				onClose={handleAlertClose}
-			>
-				<Alert
+	if (!isLoading && !surveyData) {
+		return (
+			<>
+				<CardIntro description="Nothing to see here ... :(" title="No data" />
+				<Notification
 					onClose={handleAlertClose}
-					severity="error"
-					sx={{ width: '100%' }}
-				>
-					{generalErrorMessage}
-				</Alert>
-			</Snackbar>
-		</Box>
+					isOpen={isAlertOpen}
+					title={generalErrorMessage.title}
+					message={generalErrorMessage.message}
+				/>
+			</>
+		);
+	}
+
+	return (
+		<>
+			<CardIntro
+				title={surveyData.attributes?.title || ''}
+				description={surveyData.attributes?.description || ''}
+			/>
+			{surveyData.attributes.questions.map((question) => {
+				if (question.questionType === 'text') {
+					return (
+						<CardText
+							key={question.questionId}
+							label={question.label}
+							isRequired={question.required}
+							isError={question.questionId in fieldErrors}
+							errors={fieldErrors[question.questionId]}
+							onChange={(e) => handleChange(e, question.questionId)}
+						/>
+					);
+				} else if (question.questionType === 'rating') {
+					return (
+						<CardRating
+							key={question.questionId}
+							values={getRatings(
+								question.attributes.min,
+								question.attributes.max
+							)}
+							label={question.label}
+							isError={question.questionId in fieldErrors}
+							isRequired={question.required}
+							onChange={(e) => handleChange(e, question.questionId)}
+							errors={fieldErrors[question.questionId]}
+						/>
+					);
+				}
+			})}
+			<Button onClick={handleSubmit} isLoading={isLoading}>
+				{isLoading ? 'SUBMITTING...' : 'SUBMIT'}
+			</Button>
+			<Notification
+				onClose={handleAlertClose}
+				isOpen={isAlertOpen}
+				title={generalErrorMessage.title}
+				message={generalErrorMessage.message}
+			/>
+		</>
 	);
 };

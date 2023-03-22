@@ -1,4 +1,8 @@
-const whitelist = ['http://localhost:3000'];
+const whitelist = [
+	'http://localhost:3000',
+	'https://undabot-survey-project-9tdq9y9kw-teddyxfire1992.vercel.app',
+	'https://undabot-survey-project.vercel.app',
+];
 
 const corsOptions = {
 	origin: (origin, callback) => {
