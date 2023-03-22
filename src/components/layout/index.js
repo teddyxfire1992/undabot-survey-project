@@ -1,10 +1,14 @@
 import { Outlet } from 'react-router-dom';
-import { Wrapper } from './styled';
+import { Container, ContentWrapper } from './styled';
+import { Header } from '../header';
 
 export const Layout = () => {
 	return (
-		<Wrapper>
-			<Outlet />
-		</Wrapper>
+		<Container>
+			<ContentWrapper>
+				<Header />
+				<Outlet />
+			</ContentWrapper>
+		</Container>
 	);
 };

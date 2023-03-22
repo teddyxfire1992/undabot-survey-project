@@ -1,4 +1,5 @@
-// TODO: stylize Error screen
+import { NotFound } from '../../components/not-found';
+
 export const Error = () => {
-	return <h1>Error</h1>;
+	return <NotFound />;
 };
