@@ -6,6 +6,8 @@ export const theme = createTheme({
 	palette: {
 		blue: '#0099CC',
 		blueShade: '#E0F7FF',
+		dark: '#162731',
+		light: '#FFF',
 	},
 	components: {
 		MuiCssBaseline: {
@@ -18,6 +20,10 @@ export const theme = createTheme({
         @font-face {
           font-family: 'Nunito-Bold';
           src: url(${nunitoBold}) format('truetype');
+        }
+        
+        body {
+        	background-color: #E0F7FF;
         }
       `,
 		},

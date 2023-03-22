@@ -1,16 +1,11 @@
-import { Box, CircularProgress } from '@mui/material';
+import { CircularProgress } from '@mui/material';
+import { Wrapper } from './styled';
 
 export const Loading = () => {
 	return (
-		<Box
-			width="100%"
-			display="flex"
-			flexDirection="column"
-			alignItems="center"
-			gap="5px"
-		>
+		<Wrapper>
 			<CircularProgress />
-			<span>Please wait...</span>
-		</Box>
+			<span data-testid="loading-message">Please wait...</span>
+		</Wrapper>
 	);
 };
